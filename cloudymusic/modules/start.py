@@ -18,10 +18,10 @@ startText = """
 ◎ ᴛʜɪꜱ ɪꜱ {}!
 ➻ ᴀ ꜰᴀꜱᴛ & ᴘᴏᴡᴇʀꜰᴜʟ ᴛᴇʟᴇɢʀᴀᴍ ᴍᴜꜱɪᴄ ᴘʟᴀʏᴇʀ ʙᴏᴛ ᴡɪᴛʜ ꜱᴏᴍᴇ ᴀᴡᴇꜱᴏᴍᴇ ꜰᴇᴀᴛᴜʀᴇꜱ.
 
-ꜱᴜᴘᴘᴏʀᴛᴇᴅ ᴘʟᴀᴛꜰᴏʀᴍꜱ: ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ, ᴊɪᴏꜱᴀᴀᴠɴ, ᴀᴘᴘʟᴇ ᴍᴜꜱɪᴄ ᴀɴᴅ ꜱᴏᴜɴᴅᴄʟᴏᴜᴅ.
+ꜱᴜᴘᴘᴏʀᴛᴇᴅ ᴘʟᴀᴛꜰᴏʀᴍꜱ: ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ, ᴊɪᴏꜱᴀᴀᴠɴ, ᴀᴘᴘʟᴇ ᴍᴜꜱɪᴄ 𝐀ɴᴅ ꜱᴏᴜɴᴅᴄʟᴏᴜᴅ.
 
 ---
-◎ ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʜᴇʟᴘ ʙᴜᴛᴛ𝐨𝐧 ᴛᴏ ɢᴇᴛ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ 𝐀𝐛𝐨𝐮𝐭 ᴍʏ ᴍᴏᴅᴜʟᴇꜱ 𝐀ɴᴅ ᴄᴏᴍᴍᴀɴᴅꜱ.
+◎ ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ ᴀʙᴏᴜᴛ ᴍʏ ᴍᴏᴅᴜʟᴇꜱ ᴀɴᴅ ᴄᴏᴍᴍᴀɴᴅꜱ.
 """
 
 @Client.on_message(filters=Filter.command(["start", "help"]))
@@ -29,10 +29,11 @@ async def start_cmd(c: Client, message: types.Message):
     chat_id = message.chat_id
     bot_name = c.me.first_name
     
-    # Safe user name & mention handling
-    user = await c.getUser(message.sender_user_id)
+    # pytdbot တွင် sender_id သို့မဟုတ် sender_user_id ကို လုံခြုံစွာရယူခြင်း
+    sender_id = getattr(message, "sender_id", None) or getattr(message, "sender_user_id", None) or getattr(message, "from_id", 0)
+    user = await c.getUser(sender_id) if sender_id else None
     user_name = user.first_name if user else "User"
-    mention = f"<a href='tg://user?id={message.sender_user_id}'>{user_name}</a>"
+    mention = f"<a href='tg://user?id={sender_id}'>{user_name}</a>"
 
     # Safe username extraction for pytdbot
     bot_username = None
@@ -46,13 +47,13 @@ async def start_cmd(c: Client, message: types.Message):
 
     if chat_id < 0:  # Group
         welcome_text = (
-            f"🎵 <b>Hello {mention}!</b>\n\n"
-            f"<b>{bot_name}</b> is now active in this group.\n"
-            "Here’s what I can do:\n"
-            "• High-quality music streaming\n"
-            "• Supports YouTube, Spotify, and more\n"
-            "• Powerful controls for seamless playback\n\n"
-            f"💬 <a href='{config.SUPPORT_GROUP}'>Need help? Join our Support Chat</a>"
+            f"🎵 <b>ʜᴇʟʟᴏ {mention}!</b>\n\n"
+            f"<b>{bot_name}</b> ɪꜱ ɴᴏᴡ ᴀᴄᴛɪᴠᴇ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ.\n"
+            "ʜᴇʀᴇ’ꜱ ᴡʜᴀᴛ ɪ ᴄᴀɴ ᴅᴏ:\n"
+            "• ʜɪɢʜ-ǫᴜᴀʟɪᴛʏ ᴍᴜꜱɪᴄ ꜱᴛʀᴇᴀᴍɪɴɢ\n"
+            "• ꜱᴜᴘᴘᴏʀᴛꜱ ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ, ᴀɴᴅ ᴍᴏʀᴇ\n"
+            "• ᴘᴏᴡᴇʀꜰᴜʟ ᴄᴏɴᴛʀᴏʟꜱ ꜰᴏʀ ꜱᴇᴀᴍʟᴇꜱꜱ ᴘʟᴀʏʙᴀᴄᴋ\n\n"
+            f"💬 <a href='{config.SUPPORT_GROUP}'>ɴᴇᴇᴅ ʜᴇʟᴘ? ᴊᴏɪɴ ᴏᴜʀ ꜱᴜᴘᴘᴏʀᴛ ᴄʜᴀᴛ</a>"
         )
         reply = await message.reply_text(
             text=welcome_text,
@@ -85,28 +86,30 @@ async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) 
     except Exception:
         bot_username = None
 
+    sender_id = getattr(message, "sender_id", None) or getattr(message, "sender_user_id", None) or 0
+
     if data == "help_all":
-        user = await c.getUser(message.sender_user_id)
+        user = await c.getUser(sender_id) if sender_id else None
         user_name = user.first_name if user else "User"
-        await message.answer("📚 Opening Help Menu...")
+        await message.answer("📚 ᴏᴘᴇɴɪɴɢ ʜᴇʟᴘ ᴍᴇɴᴜ...")
         welcome_text = (
-            f"👋 <b>Hello {user_name}!</b>\n\n"
-            f"Welcome to <b>{c.me.first_name}</b> — your ultimate music bot.\n"
-            f"<code>Version: v{__version__}</code>\n\n"
-            "💡 <b>What makes me special?</b>\n"
-            "• YouTube, Spotify, Apple Music, SoundCloud support\n"
-            "• Advanced queue and playback controls\n"
-            "• Private and group usage\n\n"
-            "🔍 <i>Select a help category below to continue.</i>"
+            f"👋 <b>ʜᴇʟʟᴏ {user_name}!</b>\n\n"
+            f"ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ <b>{c.me.first_name}</b> — ʏᴏᴜʀ ᴜʟᴛɪᴍᴀᴛᴇ ᴍᴜꜱɪᴄ ʙᴏᴛ.\n"
+            f"<code>ᴠᴇʀꜱɪᴏɴ: ᴠ{__version__}</code>\n\n"
+            "💡 <b>ᴡʜᴀᴛ ᴍᴀᴋᴇꜱ ᴍᴇ ꜱᴘᴇᴄɪᴀʟ?</b>\n"
+            "• ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ, ᴀᴘᴘʟᴇ ᴍᴜꜱɪᴄ, ꜱᴏᴜɴᴅᴄʟᴏᴜᴅ ꜱᴜᴘᴘᴏʀᴛ\n"
+            "• ᴀᴅᴠᴀɴᴄᴇᴅ ǫᴜᴇᴜᴇ ᴀɴᴅ ᴘʟᴀʏʙᴀᴄᴋ ᴄᴏɴᴛʀᴏʟꜱ\n"
+            "• ᴘʀɪᴠᴀᴛᴇ ᴀɴᴅ ɢʀᴏᴜᴘ ᴜꜱᴀɢᴇ\n\n"
+            "🔍 <i>ꜱᴇʟᴇᴄᴛ ᴀ ʜᴇʟᴘ ᴄᴀᴛᴇɢᴏʀʏ ʙᴇʟᴏᴡ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.</i>"
         )
         edit = await message.edit_message_caption(welcome_text, reply_markup=HelpMenu)
         if isinstance(edit, types.Error):
-            c.logger.error(f"Failed to edit message: {edit}")
+            c.logger.error(f"ꜰᴀɪʟᴇᴅ ᴛᴏ ᴇᴅɪᴛ ᴍᴇꜱꜱᴀɢᴇ: {edit}")
         return
 
     if data == "help_back":
-        await message.answer("HOME ..")
-        user = await c.getUser(message.sender_user_id)
+        await message.answer("ʜᴏᴍᴇ ..")
+        user = await c.getUser(sender_id) if sender_id else None
         user_name = user.first_name if user else "User"
         await message.edit_message_caption(
             caption=startText.format(user_name, c.me.first_name),
@@ -116,58 +119,58 @@ async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) 
 
     help_categories = {
         "help_user": {
-            "title": "🎧 User Commands",
+            "title": "🎧 ᴜꜱᴇʀ ᴄᴏᴍᴍᴀɴᴅꜱ",
             "content": (
-                "<b>▶️ Playback:</b>\n"
-                "• <code>/play [song]</code> — Play audio in VC\n"
-                "• <code>/vplay [video]</code> — Play video in VC\n"
-                "<b>🛠 Utilities:</b>\n"
-                "• <code>/start</code> — Intro message\n"
-                "• <code>/privacy</code> — Privacy policy\n"
-                "• <code>/queue</code> — View track queue\n"
+                "<b>▶️ ᴘʟᴀʏʙᴀᴄᴋ:</b>\n"
+                "• <code>/play [ꜱᴏɴɢ]</code> — ᴘʟᴀʏ ᴀᴜᴅɪᴏ ɪɴ ᴠᴄ\n"
+                "• <code>/vplay [ᴠɪᴅᴇᴏ]</code> — ᴘʟᴀʏ ᴠɪᴅᴇᴏ ɪɴ ᴠᴄ\n"
+                "<b>🛠 ᴜᴛɪʟɪᴛɪᴇꜱ:</b>\n"
+                "• <code>/start</code> — ɪɴᴛʀᴏ ᴍᴇꜱꜱᴀɢᴇ\n"
+                "• <code>/privacy</code> — ᴘʀɪᴠᴀᴄʏ ᴘᴏʟɪᴄʏ\n"
+                "• <code>/queue</code> — ᴠɪᴇᴡ ᴛʀᴀᴄᴋ ǫᴜᴇᴜᴇ\n"
             ),
             "markup": BackHelpMenu,
         },
         "help_admin": {
-            "title": "⚙️ Admin Commands",
+            "title": "⚙️ ᴀᴅᴍɪɴ ᴄᴏᴍᴍᴀɴᴅꜱ",
             "content": (
-                "<b>🎛 Playback Controls:</b>\n"
-                "• <code>/skip</code> — Skip current track\n"
-                "• <code>/pause</code> — Pause playback\n"
-                "• <code>/resume</code> — Resume playback\n"
-                "• <code>/seek [sec]</code> — Jump to a position\n"
-                "• <code>/volume [1-200]</code> — Set playback volume\n\n"
-                "<b>📋 Queue Management:</b>\n"
-                "• <code>/remove [x]</code> — Remove track number x\n"
-                "• <code>/clear</code> — Clear the entire queue\n"
-                "• <code>/loop [0-10]</code> — Repeat queue x times\n\n"
-                "<b>👑 Permissions:</b>\n"
-                "• <code>/auth [reply]</code> — Grant approval to use commands \n"
-                "• <code>/unauth [reply]</code> — Revoke authorization\n"
-                "• <code>/authlist</code> — View authorized users\n\n"
+                "<b>🎛 ᴘʟᴀʏʙᴀᴄᴋ ᴄᴏɴᴛʀᴏʟꜱ:</b>\n"
+                "• <code>/skip</code> — ꜱᴋɪᴘ ᴄᴜʀʀᴇɴᴛ ᴛʀᴀᴄᴋ\n"
+                "• <code>/pause</code> — ᴘᴀᴜꜱᴇ ᴘʟᴀʏʙᴀᴄᴋ\n"
+                "• <code>/resume</code> — ʀᴇꜱᴜᴍᴇ ᴘʟᴀʏʙᴀᴄᴋ\n"
+                "• <code>/seek [ꜱᴇᴄ]</code> — ᴊᴜᴍᴘ ᴛᴏ ᴀ ᴘᴏꜱɪᴛɪᴏɴ\n"
+                "• <code>/volume [1-200]</code> — ꜱᴇᴛ ᴘʟᴀʏʙᴀᴄᴋ ᴠᴏʟᴜᴍᴇ\n\n"
+                "<b>📋 ǫᴜᴇᴜᴇ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ:</b>\n"
+                "• <code>/remove [x]</code> — ʀᴇᴍᴏᴠᴇ ᴛʀᴀᴄᴋ ɴᴜᴍʙᴇʀ x\n"
+                "• <code>/clear</code> — ᴄʟᴇᴀʀ ᴛʜᴇ ᴇɴᴛɪʀᴇ ǫᴜᴇᴜᴇ\n"
+                "• <code>/loop [0-10]</code> — ʀᴇᴘᴇᴀᴛ ǫᴜᴇᴜᴇ x ᴛɪᴍᴇꜱ\n\n"
+                "<b>👑 ᴘᴇʀᴍɪꜱꜱɪᴏɴꜱ:</b>\n"
+                "• <code>/auth [ʀᴇᴘʟʏ]</code> — ɢʀᴀɴᴛ ᴀᴘᴘʀᴏᴠᴀʟ ᴛᴏ ᴜꜱᴇ ᴄᴏᴍᴍᴀɴᴅꜱ \n"
+                "• <code>/unauth [ʀᴇᴘʟʏ]</code> — ʀᴇᴠᴏᴋᴇ ᴀᴜᴛʜᴏʀɪᴢᴀᴛɪᴏɴ\n"
+                "• <code>/authlist</code> — ᴠɪᴇᴡ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜꜱᴇʀꜱ\n\n"
             ),
             "markup": BackHelpMenu,
         },
         "help_owner": {
-            "title": "🔐 Owner Commands",
+            "title": "🔐 ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅꜱ",
             "content": (
-                "<b>⚙️ Settings:</b>\n"
-                "• <code>/buttons</code> — Toggle control buttons\n"
-                "• <code>/thumb</code> — Toggle thumbnail mode"
+                "<b>⚙️ ꜱᴇᴛᴛɪɴɢꜱ:</b>\n"
+                "• <code>/buttons</code> — ᴛᴏɢɢʟᴇ ᴄᴏɴᴛʀᴏʟ ʙᴜᴛᴛᴏɴꜱ\n"
+                "• <code>/thumb</code> — ᴛᴏɢɢʟᴇ ᴛʜᴜᴍʙɴᴀɪʟ ᴍᴏᴅᴇ"
             ),
             "markup": BackHelpMenu,
         },
         "help_devs": {
-            "title": "🛠 Developer Tools",
+            "title": "🛠 ᴅᴇᴠᴇʟᴏᴘᴇʀ ᴛᴏᴏʟꜱ",
             "content": (
-                "<b>📊 System Tools:</b>\n"
-                "• <code>/stats</code> — Show usage stats\n"
-                "• <code>/logger</code> — Toggle log mode\n"
-                "• <code>/broadcast</code> — Send a message to all\n\n"
-                "<b>🧹 Maintenance:</b>\n"
-                "• <code>/activevc</code> — Show active voice chats\n"
-                "• <code>/clearallassistants</code> — Remove all assistants data from DB\n"
-                "• <code>/autoend</code> — Enable auto-leave when VC is empty"
+                "<b>📊 ꜱʏꜱᴛᴇᴍ ᴛᴏᴏʟꜱ:</b>\n"
+                "• <code>/stats</code> — ꜱʜᴏᴡ ᴜꜱᴀɢᴇ ꜱᴛᴀᴛꜱ\n"
+                "• <code>/logger</code> — ᴛᴏɢɢʟᴇ ʟᴏɢ ᴍᴏᴅᴇ\n"
+                "• <code>/broadcast</code> — ꜱᴇɴᴅ ᴀ ᴍᴇꜱꜱᴀɢᴇ ᴛᴏ ᴀʟʟ\n\n"
+                "<b>🧹 ᴍᴀɪɴᴛᴇɴᴀɴᴄᴇ:</b>\n"
+                "• <code>/activevc</code> — ꜱʜᴏᴡ ᴀᴄᴛɪᴠᴇ ᴠᴏɪᴄᴇ ᴄʜᴀᴛꜱ\n"
+                "• <code>/clearallassistants</code> — ʀᴇᴍᴏᴠᴇ ᴀʟʟ ᴀꜱꜱɪꜱᴛᴀɴᴛꜱ ᴅᴀᴛᴀ ꜰʀᴏᴍ ᴅʙ\n"
+                "• <code>/autoend</code> — ᴇɴᴀʙʟᴇ ᴀᴜᴛᴏ-ʟᴇᴀᴠᴇ ᴡʜᴇɴ ᴠᴄ ɪꜱ ᴇᴍᴘᴛʏ"
             ),
             "markup": BackHelpMenu,
         },
@@ -178,11 +181,11 @@ async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) 
         formatted_text = (
             f"<b>{category['title']}</b>\n\n"
             f"{category['content']}\n\n"
-            "🔙 <i>Use the buttons below to go back.</i>"
+            "🔙 <i>ᴜꜱᴇ ᴛʜᴇ ʙᴜᴛᴛᴏɴꜱ ʙᴇʟᴏᴡ ᴛᴏ ɢᴏ ʙᴀᴄᴋ.</i>"
         )
         edit = await message.edit_message_caption(formatted_text, reply_markup=category["markup"])
         if isinstance(edit, types.Error):
-            c.logger.error(f"Failed to edit message: {edit}")
+            c.logger.error(f"ꜰᴀɪʟᴇᴅ ᴛᴏ ᴇᴅɪᴛ ᴍᴇꜱꜱᴀɢᴇ: {edit}")
         return
 
-    await message.answer("⚠️ Unknown command category.")
+    await message.answer("⚠️ ᴜɴᴋɴᴏᴡɴ ᴄᴏᴍᴍᴀɴᴅ ᴄᴀᴛᴇɢᴏʀʏ.")
