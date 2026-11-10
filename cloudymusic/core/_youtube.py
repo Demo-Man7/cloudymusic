@@ -158,7 +158,7 @@ class YouTubeUtils:
     async def download_with_onegrab_api(
         video_id: str, is_video: bool = False
     ) -> Union[None, Path]:
-        """Download or stream audio/video using OneGrab API."""
+        """Download or stream audio/video using OneGrab API with robust URL extraction."""
         from cloudymusic import client
 
         headers = {}
@@ -170,19 +170,34 @@ class YouTubeUtils:
         
         target_url = f"{api_base}/api/get_url?url=https://www.youtube.com/watch?v={video_id}&video={str(is_video).lower()}"
         
-        if response_data := await httpx.make_request(target_url, headers=headers):
-            dl_url = response_data.get("cdnurl") or response_data.get("results")
-            if not dl_url and isinstance(response_data, dict):
-                dl_url = response_data.get("data", {}).get("cdnurl")
+        response_data = await httpx.make_request(target_url, headers=headers)
+        if response_data:
+            dl_url = None
+            
+            # Response ၏ ပုံစံအမျိုးမျိုးကို စစ်ဆေးခြင်း (dict, list, nested data)
+            if isinstance(response_data, dict):
+                dl_url = (
+                    response_data.get("cdnurl") 
+                    or response_data.get("results") 
+                    or response_data.get("url")
+                    or response_data.get("data", {}).get("cdnurl")
+                    or response_data.get("data", {}).get("url")
+                )
+            elif isinstance(response_data, list) and response_data:
+                dl_url = response_data[0]
 
-            # 🛠 dl_url list ဖြစ်နေပါက string သို့ ပြောင်းလဲခြင်း
             if isinstance(dl_url, list):
                 dl_url = dl_url[0] if dl_url else None
 
+            # အကယ်၍ API ကနေ cdnurl တိုက်ရိုက်မပေးဘဲ dict တစ်ခုလုံး သို့မဟုတ် string ပုံစံပြန်လာပါက
+            if not dl_url and isinstance(response_data, str):
+                dl_url = response_data
+
             if not dl_url or not isinstance(dl_url, str):
-                LOGGER.error("OneGrab API returned empty or invalid download URL format")
+                LOGGER.warning("OneGrab API did not return a valid download link, falling back to yt-dlp.")
                 return None
 
+            # Telegram file link ဖြစ်ပါက download ဆွဲပုံစံဖြင့် ယူခြင်း
             if not re.fullmatch(r"https:\/\/t\.me\/([a-zA-Z0-9_]{5,})\/(\d+)", dl_url):
                 dl = await httpx.download_file(dl_url)
                 return dl.file_path if dl.success else None
@@ -320,13 +335,21 @@ class YouTubeData(MusicService):
             httpx = HttpxClient()
             response = await httpx.make_request(search_url, headers=headers)
 
-            if response and response.get("results"):
-                tracks = [
-                    MusicTrack(**YouTubeUtils.format_track(track))
-                    for track in response["results"]
-                    if track
-                ]
-                return PlatformTracks(tracks=tracks)
+            if response:
+                results_list = []
+                if isinstance(response, dict):
+                    results_list = response.get("results") or response.get("data") or []
+                elif isinstance(response, list):
+                    results_list = response
+
+                if results_list:
+                    tracks = [
+                        MusicTrack(**YouTubeUtils.format_track(track))
+                        for track in results_list
+                        if track and isinstance(track, dict)
+                    ]
+                    if tracks:
+                        return PlatformTracks(tracks=tracks)
         except Exception as e:
             LOGGER.error(f"OneGrab search failed: {e}")
 
@@ -367,7 +390,7 @@ class YouTubeData(MusicService):
         if not track:
             return types.Error(code=400, message="Invalid track information provided")
 
-        # OneGrab API ဖြင့် ဒေါင်းလုပ်ဆွဲရန် ကြိုးပမ်းခြင်း
+        # OneGrab API ဖြင့် ဒေါင်းလုပ်ဆွဲရန် ကြိုးပမ်းခြင်း (API မအောင်မြင်ပါက yt-dlp သို့ အလိုအလျောက် fallback သွားပါမည်)
         if config.API_URL:
             if api_result := await YouTubeUtils.download_with_onegrab_api(track.tc, video):
                 return api_result
@@ -405,8 +428,11 @@ class YouTubeData(MusicService):
             httpx = HttpxClient()
             response = await httpx.make_request(track_url, headers=headers)
             if response:
-                formatted = YouTubeUtils.format_track(response)
-                return {"results": [formatted]}
+                if isinstance(response, dict):
+                    track_dict = response.get("data") or response.get("result") or response
+                    if isinstance(track_dict, dict) and ("id" in track_dict or "title" in track_dict or "name" in track_dict):
+                        formatted = YouTubeUtils.format_track(track_dict)
+                        return {"results": [formatted]}
         except Exception:
             pass
 
