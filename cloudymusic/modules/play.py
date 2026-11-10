@@ -2,6 +2,7 @@
 #  Licensed under the GNU AGPL v3.0: https://www.gnu.org/licenses/agpl-3.0.html
 #  Part of the cloudymusic project. All rights reserved where applicable.
 
+import os
 import re
 
 from pytdbot import Client, types
@@ -80,8 +81,8 @@ async def _update_msg_with_thumb(
     thumb: str,
     button: types.ReplyMarkupInlineKeyboard,
 ):
-    """Update message with thumbnail if available."""
-    if not thumb:
+    """Update message with thumbnail if available safely using absolute path."""
+    if not thumb or not os.path.exists(thumb):
         return await edit_text(
             msg, text=text, reply_markup=button, disable_web_page_preview=True
         )
@@ -90,17 +91,23 @@ async def _update_msg_with_thumb(
     if isinstance(parsed_text, types.Error):
         return await edit_text(msg, text=parsed_text.message, reply_markup=button)
 
-    input_content = types.InputMessagePhoto(
-        types.InputFileLocal(thumb), caption=parsed_text
-    )
-    edit_result = await c.editMessageMedia(
-        chat_id=msg.chat_id,
-        message_id=msg.id,
-        input_message_content=input_content,
-        reply_markup=button,
-    )
+    try:
+        abs_thumb_path = os.path.abspath(thumb)
+        input_content = types.InputMessagePhoto(
+            types.InputFileLocal(abs_thumb_path), caption=parsed_text
+        )
+        edit_result = await c.editMessageMedia(
+            chat_id=msg.chat_id,
+            message_id=msg.id,
+            input_message_content=input_content,
+            reply_markup=button,
+        )
+        if not isinstance(edit_result, types.Error):
+            return edit_result
+    except Exception as e:
+        LOGGER.warning("Failed to edit message media with thumb: %s", e)
 
-    return edit_result
+    return await edit_text(msg, text=text, reply_markup=button, disable_web_page_preview=True)
 
 
 async def _handle_single_track(
