@@ -34,7 +34,6 @@ def extract_user_id(msg_obj) -> int:
     if isinstance(raw, dict):
         raw = raw.get("user_id") or raw.get("id", 0)
     
-    # Check if sender is a user message object or has an id attribute
     if hasattr(raw, "id"):
         raw = raw.id
     elif hasattr(raw, "user_id"):
@@ -82,10 +81,10 @@ async def start_cmd(c: Client, message: types.Message):
             reply_markup=SupportButton,
         )
 
-    else:  # Private chat
-        reply = await message.reply_photo(
-            photo=config.START_IMG,
-            caption=startText.format(user_name, bot_name),
+    else:  # Private chat (🖼️ ပုံအစား စာသားသက်သက်ဖြင့် Error ကင်းအောင် ပြင်ဆင်ထားသည်)
+        reply = await message.reply_text(
+            text=startText.format(user_name, bot_name),
+            disable_web_page_preview=True,
             reply_markup=add_me_markup(bot_username),
         )
 
@@ -122,7 +121,7 @@ async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) 
             "• ᴘʀɪᴠᴀᴛᴇ ᴀɴᴅ ɢʀᴏᴜᴘ ᴜꜱᴀɢᴇ\n\n"
             "🔍 <i>ꜱᴇʟᴇᴄᴛ ᴀ ʜᴇʟᴘ ᴄᴀᴛᴇɢᴏʀʏ ʙᴇʟᴏᴡ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.</i>"
         )
-        edit = await message.edit_message_caption(welcome_text, reply_markup=HelpMenu)
+        edit = await message.edit_message_text(welcome_text, reply_markup=HelpMenu)
         if isinstance(edit, types.Error):
             c.logger.error(f"ꜰᴀɪʟᴇᴅ ᴛᴏ ᴇᴅɪᴛ ᴍᴇꜱꜱᴀɢᴇ: {edit}")
         return
@@ -131,8 +130,8 @@ async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) 
         await message.answer("ʜᴏᴍᴇ ..")
         user = await c.getUser(sender_id) if sender_id else None
         user_name = user.first_name if user else "User"
-        await message.edit_message_caption(
-            caption=startText.format(user_name, c.me.first_name),
+        await message.edit_message_text(
+            text=startText.format(user_name, c.me.first_name),
             reply_markup=add_me_markup(bot_username),
         )
         return
@@ -203,7 +202,7 @@ async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) 
             f"{category['content']}\n\n"
             "🔙 <i>ᴜꜱᴇ ᴛʜᴇ ʙᴜᴛᴛᴏɴꜱ ʙᴇʟᴏᴡ ᴛᴏ ɢᴏ ʙᴀᴄᴋ.</i>"
         )
-        edit = await message.edit_message_caption(formatted_text, reply_markup=category["markup"])
+        edit = await message.edit_message_text(formatted_text, reply_markup=category["markup"])
         if isinstance(edit, types.Error):
             c.logger.error(f"ꜰᴀɪʟᴇᴅ ᴛᴏ ᴇᴅɪᴛ ᴍᴇꜱꜱᴀɢᴇ: {edit}")
         return
