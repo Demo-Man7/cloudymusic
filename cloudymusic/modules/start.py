@@ -18,19 +18,40 @@ startText = """
 ◎ ᴛʜɪꜱ ɪꜱ {}!
 ➻ ᴀ ꜰᴀꜱᴛ & ᴘᴏᴡᴇʀꜰᴜʟ ᴛᴇʟᴇɢʀᴀᴍ ᴍᴜꜱɪᴄ ᴘʟᴀʏᴇʀ ʙᴏᴛ ᴡɪᴛʜ ꜱᴏᴍᴇ ᴀᴡᴇꜱᴏᴍᴇ ꜰᴇᴀᴛᴜʀᴇꜱ.
 
-ꜱᴜᴘᴘᴏʀᴛᴇᴅ ᴘʟᴀᴛꜰᴏʀᴍꜱ: ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ, ᴊɪᴏꜱᴀᴀᴠɴ, ᴀᴘᴘʟᴇ ᴍᴜꜱɪᴄ 𝐀ɴᴅ ꜱᴏᴜɴᴅᴄʟᴏᴜᴅ.
+ꜱᴜᴘᴘᴏʀᴛᴇᴅ ᴘʟᴀᴛꜰᴏʀᴍꜱ: ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ, ᴊɪᴏꜱᴀᴀᴠɴ, ᴀᴘᴘʟᴇ ᴍᴜꜱɪᴄ ᴀɴᴅ ꜱᴏᴜɴᴅᴄʟᴏᴜᴅ.
 
 ---
 ◎ ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ ᴀʙᴏᴜᴛ ᴍʏ ᴍᴏᴅᴜʟᴇꜱ ᴀɴᴅ ᴄᴏᴍᴍᴀɴᴅꜱ.
 """
+
+def extract_user_id(msg_obj) -> int:
+    """Helper to safely extract user ID as int from pytdbot message/callback."""
+    raw = (
+        getattr(msg_obj, "sender_id", None) 
+        or getattr(msg_obj, "sender_user_id", None) 
+        or getattr(msg_obj, "from_id", 0)
+    )
+    if isinstance(raw, dict):
+        raw = raw.get("user_id") or raw.get("id", 0)
+    
+    # Check if sender is a user message object or has an id attribute
+    if hasattr(raw, "id"):
+        raw = raw.id
+    elif hasattr(raw, "user_id"):
+        raw = raw.user_id
+
+    try:
+        return int(raw) if raw else 0
+    except (ValueError, TypeError):
+        return 0
+
 
 @Client.on_message(filters=Filter.command(["start", "help"]))
 async def start_cmd(c: Client, message: types.Message):
     chat_id = message.chat_id
     bot_name = c.me.first_name
     
-    # pytdbot တွင် sender_id သို့မဟုတ် sender_user_id ကို လုံခြုံစွာရယူခြင်း
-    sender_id = getattr(message, "sender_id", None) or getattr(message, "sender_user_id", None) or getattr(message, "from_id", 0)
+    sender_id = extract_user_id(message)
     user = await c.getUser(sender_id) if sender_id else None
     user_name = user.first_name if user else "User"
     mention = f"<a href='tg://user?id={sender_id}'>{user_name}</a>"
@@ -76,7 +97,6 @@ async def start_cmd(c: Client, message: types.Message):
 async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) -> None:
     data = message.payload.data.decode()
 
-    # Safe username extraction for callbacks
     bot_username = None
     try:
         if hasattr(c.me, "usernames") and c.me.usernames:
@@ -86,7 +106,7 @@ async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) 
     except Exception:
         bot_username = None
 
-    sender_id = getattr(message, "sender_id", None) or getattr(message, "sender_user_id", None) or 0
+    sender_id = extract_user_id(message)
 
     if data == "help_all":
         user = await c.getUser(sender_id) if sender_id else None
