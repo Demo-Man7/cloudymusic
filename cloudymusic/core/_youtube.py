@@ -168,7 +168,6 @@ class YouTubeUtils:
         httpx = HttpxClient()
         api_base = config.API_URL.rstrip("/") if config.API_URL else "https://api.onegrab.fun"
         
-        # OneGrab /api/get_url သို့ လမ်းကြောင်းမှန်ကန်စွာ ခေါ်ဆိုခြင်း
         target_url = f"{api_base}/api/get_url?url=https://www.youtube.com/watch?v={video_id}&video={str(is_video).lower()}"
         
         if response_data := await httpx.make_request(target_url, headers=headers):
@@ -176,8 +175,12 @@ class YouTubeUtils:
             if not dl_url and isinstance(response_data, dict):
                 dl_url = response_data.get("data", {}).get("cdnurl")
 
-            if not dl_url:
-                LOGGER.error("OneGrab API returned empty download URL")
+            # 🛠 dl_url list ဖြစ်နေပါက string သို့ ပြောင်းလဲခြင်း
+            if isinstance(dl_url, list):
+                dl_url = dl_url[0] if dl_url else None
+
+            if not dl_url or not isinstance(dl_url, str):
+                LOGGER.error("OneGrab API returned empty or invalid download URL format")
                 return None
 
             if not re.fullmatch(r"https:\/\/t\.me\/([a-zA-Z0-9_]{5,})\/(\d+)", dl_url):
