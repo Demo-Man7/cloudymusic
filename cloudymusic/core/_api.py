@@ -1,6 +1,6 @@
-#  Copyright (c) 2025 strad-dev131
-#  Licensed under the GNU AGPL v3.0: https://www.gnu.org/licenses/agpl-3.0.html
-#  Part of the cloudymusic project. All rights reserved where applicable.
+# Copyright (c) 2025 strad-dev131
+# Licensed under the GNU AGPL v3.0: https://www.gnu.org/licenses/agpl-3.0.html
+# Part of the cloudymusic project. All rights reserved where applicable.
 
 import re
 from pathlib import Path
@@ -17,16 +17,8 @@ from ._dataclass import PlatformTracks, MusicTrack, TrackInfo
 
 
 class ApiData(MusicService):
-    """API integration handler for multiple music streaming platforms.
+    """API integration handler for multiple music streaming platforms using OneGrab API."""
 
-    Provides functionality to:
-    - Validate and process music URLs
-    - Retrieve track information
-    - Search across platforms
-    - Download tracks
-    """
-
-    # Platform URL validation patterns
     URL_PATTERNS = {
         "apple_music": re.compile(
             r"^(https?://)?([a-z0-9-]+\.)*music\.apple\.com/"
@@ -47,127 +39,105 @@ class ApiData(MusicService):
     }
 
     def __init__(self, query: Optional[str] = None) -> None:
-        """Initialize the API handler with optional query.
-
-        Args:
-            query: URL or search term to process
-        """
         self.query = self._sanitize_query(query) if query else None
-        self.api_url = config.API_URL.rstrip("/") if config.API_URL else None
+        self.api_url = config.API_URL.rstrip("/") if config.API_URL else "https://api.onegrab.fun"
         self.api_key = config.API_KEY
         self.client = HttpxClient()
 
     @staticmethod
     def _sanitize_query(query: str) -> str:
-        """Clean and standardize input queries.
-
-        Removes:
-        - URL fragments (#)
-        - Query parameters (?)
-        - Leading/trailing whitespace
-        """
         return query.strip().split("?")[0].split("#")[0]
 
     def is_valid(self) -> bool:
-        """Validate if URL matches supported platform patterns.
-
-        Returns:
-            bool: True if URL matches any platform pattern
-        """
         if not all([self.query, self.api_key, self.api_url]):
             return False
-
         return any(pattern.match(self.query) for pattern in self.URL_PATTERNS.values())
+
+    def _get_headers(self) -> dict:
+        headers = {}
+        if self.api_key:
+            headers["X-API-Key"] = self.api_key
+        return headers
 
     async def _make_api_request(
         self, endpoint: str, params: Optional[dict] = None
     ) -> Optional[dict]:
-        request_url = f"{self.api_url}/{endpoint.lstrip('/')}"
-        return await self.client.make_request(request_url, params=params)
+        # OneGrab API endpoint များအတွက် /api ကို ပေါင်းစပ်ပေးခြင်း
+        request_url = f"{self.api_url}/api/{endpoint.lstrip('/')}"
+        return await self.client.make_request(request_url, params=params, headers=self._get_headers())
 
     async def get_info(self) -> Union[PlatformTracks, types.Error]:
-        """Retrieve track information from a valid URL.
-
-        Returns:
-            PlatformTracks: Contains track metadata
-            types.Error: If URL is invalid or request fails
-        """
+        """Retrieve track information from a valid URL using OneGrab /api/track or /api/get_url."""
         if not self.query or not self.is_valid():
             return types.Error(400, "Invalid or unsupported URL provided")
 
-        response = await self._make_api_request("get_url", {"url": self.query})
+        response = await self._make_api_request("track", {"url": self.query})
+        if response and isinstance(response, dict):
+            # PlatformTracks format သို့ ပြောင်းလဲခြင်း
+            tracks = [MusicTrack(**response)] if "id" in response or "tc" in response else []
+            if tracks:
+                return PlatformTracks(tracks=tracks)
+        
+        # Fallback to get_url if track fails
+        response = await self._make_api_request("get_url", {"url": self.query, "video": "false"})
         return self._parse_tracks_response(response) or types.Error(
             404, "No track information found"
         )
 
     async def search(self) -> Union[PlatformTracks, types.Error]:
-        """Search for tracks across supported platforms.
-
-        Returns:
-            PlatformTracks: Contains search results
-            types.Error: If query is invalid or search fails
-        """
+        """Search for tracks across supported platforms using OneGrab /api/search."""
         if not self.query:
             return types.Error(400, "No search query provided")
 
-        # If query is a valid URL, get info directly
         if self.is_valid():
             return await self.get_info()
 
-        response = await self._make_api_request("search_track", {"q": self.query})
+        # OneGrab API ၏ search endpoint (`/api/search?query=...`) ကို သုံးခြင်း
+        response = await self._make_api_request("search", {"query": self.query, "limit": 5})
         return self._parse_tracks_response(response) or types.Error(
             404, "No results found for search query"
         )
 
     async def get_track(self) -> Union[TrackInfo, types.Error]:
-        """Get detailed track information.
-
-        Returns:
-            TrackInfo: Detailed track metadata
-            types.Error: If track cannot be found
-        """
+        """Get detailed track information using OneGrab /api/track."""
         if not self.query:
             return types.Error(400, "No track identifier provided")
 
-        response = await self._make_api_request("get_track", {"id": self.query})
+        target_url = self.query if re.match("^https?://", self.query) else f"https://open.spotify.com/track/{self.query}"
+        response = await self._make_api_request("track", {"url": target_url})
         return (
-            TrackInfo(**response) if response else types.Error(404, "Track not found")
+            TrackInfo(**response) if response and isinstance(response, dict) else types.Error(404, "Track not found")
         )
 
     async def download_track(
         self, track: TrackInfo, video: bool = False
     ) -> Union[Path, types.Error]:
-        """Download a track to local storage.
-
-        Args:
-            track: TrackInfo object containing download details
-            video: Whether to download video (default: False)
-
-        Returns:
-            Path: Location of downloaded file
-            types.Error: If download fails
-        """
         if not track:
             return types.Error(400, "Invalid track information provided")
 
-        # Handle platform-specific download methods
         if track.platform.lower() == "spotify":
             spotify_result = await SpotifyDownload(track).process()
             if isinstance(spotify_result, types.Error):
                 LOGGER.error(f"Spotify download failed: {spotify_result.message}")
             return spotify_result
 
-        # if track.platform.lower() == "youtube":
-        #     return await YouTubeData().download_track(track, video)
+        # OneGrab API မှ cdnurl မပါလာပါက /api/get_url မှ တဆင့် cdnurl အသစ် တောင်းခံခြင်း
+        cdn_url = track.cdnurl
+        if not cdn_url or cdn_url == "None":
+            try:
+                get_url_resp = await self._make_api_request("get_url", {"url": track.url, "video": str(video).lower()})
+                if get_url_resp and isinstance(get_url_resp, dict):
+                    cdn_url = get_url_resp.get("cdnurl") or get_url_resp.get("results")
+            except Exception as e:
+                LOGGER.error(f"Failed to fetch cdnurl from OneGrab: {e}")
 
-        if not track.cdnurl:
+        if not cdn_url or cdn_url == "None":
             error_msg = f"No download URL available for track: {track.tc}"
             LOGGER.error(error_msg)
             return types.Error(400, error_msg)
 
-        # Standard download handling
         download_path = config.DOWNLOADS_DIR / f"{track.tc}.mp3"
-        download_result = await self.client.download_file(track.cdnurl, download_path)
+        download_result = await self.client.download_file(cdn_url, download_path)
 
         if not download_result.success:
             LOGGER.warning(
@@ -183,22 +153,23 @@ class ApiData(MusicService):
     def _parse_tracks_response(
         response_data: Optional[dict],
     ) -> Union[PlatformTracks, types.Error]:
-        """Parse and validate API response data.
-
-        Args:
-            response_data: Raw API response
-
-        Returns:
-            PlatformTracks: Validated track data
-            types.Error: If response is invalid
-        """
-        if not response_data or "results" not in response_data:
+        if not response_data:
             return types.Error(404, "Invalid API response format")
+
+        results = response_data.get("results") or response_data.get("data")
+        if not results:
+            if isinstance(response_data, dict) and ("id" in response_data or "tc" in response_data):
+                results = [response_data]
+            else:
+                return types.Error(404, "No valid tracks found")
+
+        if isinstance(results, dict):
+            results = [results]
 
         try:
             tracks = [
                 MusicTrack(**track_data)
-                for track_data in response_data["results"]
+                for track_data in results
                 if isinstance(track_data, dict)
             ]
             return (
