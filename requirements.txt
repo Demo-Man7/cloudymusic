@@ -13,6 +13,7 @@ py-tgcalls>=2.0.0
 pytgcrypto~=1.2.11
 pytdbot~=0.9.6.dev1
 pytz~=2025.2
+python-dotenv>=1.0.0     # <--- 
 tdjson~=1.8.51
 ujson~=5.10.0
 yt-dlp~=2025.7.21
