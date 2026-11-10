@@ -166,15 +166,14 @@ class YouTubeUtils:
             headers["X-API-Key"] = config.API_KEY
 
         httpx = HttpxClient()
-        api_base = config.API_URL.rstrip("/")
+        api_base = config.API_URL.rstrip("/") if config.API_URL else "https://api.onegrab.fun"
         
-        # OneGrab /api/get_url သို့မဟုတ် /api/track ကို သုံး၍ link တောင်းခံခြင်း
-        target_url = f"{api_base}/get_url?url=https://www.youtube.com/watch?v={video_id}&video={str(is_video).lower()}"
+        # OneGrab /api/get_url သို့ လမ်းကြောင်းမှန်ကန်စွာ ခေါ်ဆိုခြင်း
+        target_url = f"{api_base}/api/get_url?url=https://www.youtube.com/watch?v={video_id}&video={str(is_video).lower()}"
         
         if response_data := await httpx.make_request(target_url, headers=headers):
             dl_url = response_data.get("cdnurl") or response_data.get("results")
             if not dl_url and isinstance(response_data, dict):
-                # အကယ်၍ nested ဖြစ်နေပါက
                 dl_url = response_data.get("data", {}).get("cdnurl")
 
             if not dl_url:
@@ -312,8 +311,8 @@ class YouTubeData(MusicService):
             if config.API_KEY:
                 headers["X-API-Key"] = config.API_KEY
 
-            api_base = config.API_URL.rstrip("/") if config.API_URL else "https://api.onegrab.fun/api"
-            search_url = f"{api_base}/search?query={self.query}&platform=ytmusic&limit=5"
+            api_base = config.API_URL.rstrip("/") if config.API_URL else "https://api.onegrab.fun"
+            search_url = f"{api_base}/api/search?query={self.query}&platform=ytmusic&limit=5"
             
             httpx = HttpxClient()
             response = await httpx.make_request(search_url, headers=headers)
@@ -370,7 +369,7 @@ class YouTubeData(MusicService):
             if api_result := await YouTubeUtils.download_with_onegrab_api(track.tc, video):
                 return api_result
 
-        # yt-dlp ဖြင့် ဖျက်ရန်/ဒေါင်းရန် fallback သုံးခြင်း
+        # yt-dlp ဖြင့် ဒေါင်းရန် fallback သုံးခြင်း
         dl_path = await YouTubeUtils.download_with_yt_dlp(track.tc, video)
         if not dl_path:
             return types.Error(code=500, message="Failed to download track from YouTube")
@@ -397,8 +396,8 @@ class YouTubeData(MusicService):
             if config.API_KEY:
                 headers["X-API-Key"] = config.API_KEY
 
-            api_base = config.API_URL.rstrip("/") if config.API_URL else "https://api.onegrab.fun/api"
-            track_url = f"{api_base}/track?url={normalized_url}"
+            api_base = config.API_URL.rstrip("/") if config.API_URL else "https://api.onegrab.fun"
+            track_url = f"{api_base}/api/track?url={normalized_url}"
             
             httpx = HttpxClient()
             response = await httpx.make_request(track_url, headers=headers)
