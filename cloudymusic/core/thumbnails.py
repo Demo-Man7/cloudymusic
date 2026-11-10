@@ -4,6 +4,7 @@
 
 import asyncio
 from io import BytesIO
+import os
 
 import httpx
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
@@ -168,6 +169,11 @@ async def gen_thumb(song: CachedTrack) -> str:
     save_dir = f"database/photos/{song.track_id}.png"
     if await aiopath.exists(save_dir):
         return save_dir
+
+    # လိုအပ်သော directory ရှိမရှိ စစ်ဆေးပြီး ဖန်တီးခြင်း
+    os_dir = os.path.dirname(save_dir)
+    if not await aiopath.exists(os_dir):
+        os.makedirs(os_dir, exist_ok=True)
 
     title, artist = clean_text(song.name), clean_text("Spotify")
     duration = song.duration or 0
