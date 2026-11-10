@@ -21,7 +21,7 @@ from ._httpx import HttpxClient
 
 
 class YouTubeUtils:
-    """Utility class for YouTube-related operations."""
+    """Utility class for YouTube-related operations using ShrutiAPI."""
 
     YOUTUBE_VIDEO_PATTERN = re.compile(
         r"^(?:https?://)?(?:www\.)?(?:youtube\.com|music\.youtube\.com|youtu\.be)/"
@@ -155,63 +155,58 @@ class YouTubeUtils:
             return None
 
     @staticmethod
-    async def download_with_onegrab_api(
+    async def download_with_shrutibots_api(
         video_id: str, is_video: bool = False
     ) -> Union[None, Path]:
-        """Download or stream audio/video using OneGrab API with robust URL extraction."""
+        """Download audio/video using ShrutiAPI (/download endpoint)."""
         from cloudymusic import client
 
-        headers = {}
-        if config.API_KEY:
-            headers["X-API-Key"] = config.API_KEY
+        api_key = config.API_KEY
+        if not api_key:
+            LOGGER.warning("ShrutiAPI key is missing in configuration.")
+            return None
 
         httpx = HttpxClient()
-        api_base = config.API_URL.rstrip("/") if config.API_URL else "https://api.onegrab.fun"
+        media_type = "video" if is_video else "audio"
+        target_url = f"https://api.shrutibots.in/download?url={video_id}&type={media_type}&api_key={api_key}"
         
-        target_url = f"{api_base}/api/get_url?url=https://www.youtube.com/watch?v={video_id}&video={str(is_video).lower()}"
-        
-        response_data = await httpx.make_request(target_url, headers=headers)
-        if response_data:
-            dl_url = None
-            
-            # Response ပုံစံအမျိုးမျိုးကို စစ်ဆေးခြင်း (dict, list, nested data)
-            if isinstance(response_data, dict):
-                dl_url = (
-                    response_data.get("cdnurl") 
-                    or response_data.get("results") 
-                    or response_data.get("url")
-                    or response_data.get("data", {}).get("cdnurl")
-                    or response_data.get("data", {}).get("url")
-                )
-            elif isinstance(response_data, list) and response_data:
-                dl_url = response_data[0]
+        LOGGER.info(f"Requesting download from ShrutiAPI for video_id: {video_id}")
 
-            if isinstance(dl_url, list):
-                dl_url = dl_url[0] if dl_url else None
+        try:
+            response_data = await httpx.make_request(target_url)
+            if response_data:
+                dl_url = None
+                if isinstance(response_data, dict):
+                    dl_url = (
+                        response_data.get("cdnurl")
+                        or response_data.get("url")
+                        or response_data.get("link")
+                        or response_data.get("data", {}).get("url")
+                    )
+                elif isinstance(response_data, str):
+                    dl_url = response_data
 
-            if not dl_url and isinstance(response_data, str):
-                dl_url = response_data
+                if not dl_url or not isinstance(dl_url, str):
+                    # အကယ်၍ API က ဖိုင်တိုက်ရိုက်ပေးလိုက်ပါက သို့မဟုတ် download ရလဒ်ဖြစ်ပါက
+                    pass
 
-            if not dl_url or not isinstance(dl_url, str):
-                LOGGER.warning("OneGrab API did not return a valid download link, falling back to yt-dlp.")
-                return None
+                # အကယ်၍ ShrutiAPI က direct file download link ပေးလျှင်
+                if dl_url and not re.fullmatch(r"https:\/\/t\.me\/([a-zA-Z0-9_]{5,})\/(\d+)", dl_url):
+                    dl = await httpx.download_file(dl_url)
+                    return dl.file_path if dl.success else None
 
-            if not re.fullmatch(r"https:\/\/t\.me\/([a-zA-Z0-9_]{5,})\/(\d+)", dl_url):
-                dl = await httpx.download_file(dl_url)
-                return dl.file_path if dl.success else None
+                # Telegram message link ဖြစ်ပါက
+                if dl_url:
+                    info = await client.getMessageLinkInfo(dl_url)
+                    if not isinstance(info, types.Error) and info.message is not None:
+                        msg = await client.getMessage(info.chat_id, info.message.id)
+                        if not isinstance(msg, types.Error):
+                            file = await msg.download()
+                            if not isinstance(file, types.Error):
+                                return Path(file.path)
+        except Exception as e:
+            LOGGER.error(f"ShrutiAPI download failed: {e}")
 
-            info = await client.getMessageLinkInfo(dl_url)
-            if isinstance(info, types.Error) or info.message is None:
-                return None
-
-            msg = await client.getMessage(info.chat_id, info.message.id)
-            if isinstance(msg, types.Error):
-                return None
-
-            file = await msg.download()
-            if isinstance(file, types.Error):
-                return None
-            return Path(file.path)
         return None
 
     @staticmethod
@@ -296,7 +291,7 @@ class YouTubeUtils:
 
 
 class YouTubeData(MusicService):
-    """Handles YouTube music data operations using OneGrab API and yt-dlp fallback."""
+    """Handles YouTube music data operations using ShrutiAPI as primary source."""
 
     def __init__(self, query: Optional[str] = None) -> None:
         self.query = YouTubeUtils.clean_query(query) if query else None
@@ -321,37 +316,7 @@ class YouTubeData(MusicService):
         if self.is_valid():
             return await self.get_info()
 
-        # OneGrab API သုံး၍ သီချင်းရှာဖွေခြင်း (/api/search)
-        try:
-            headers = {}
-            if config.API_KEY:
-                headers["X-API-Key"] = config.API_KEY
-
-            api_base = config.API_URL.rstrip("/") if config.API_URL else "https://api.onegrab.fun"
-            search_url = f"{api_base}/api/search?query={self.query}&platform=ytmusic&limit=5"
-            
-            httpx = HttpxClient()
-            response = await httpx.make_request(search_url, headers=headers)
-
-            if response:
-                results_list = []
-                if isinstance(response, dict):
-                    results_list = response.get("results") or response.get("data") or []
-                elif isinstance(response, list):
-                    results_list = response
-
-                if results_list:
-                    tracks = [
-                        MusicTrack(**YouTubeUtils.format_track(track))
-                        for track in results_list
-                        if track and isinstance(track, dict)
-                    ]
-                    if tracks:
-                        return PlatformTracks(tracks=tracks)
-        except Exception as e:
-            LOGGER.error(f"OneGrab search failed: {e}")
-
-        # Fallback to VideosSearch အကယ်၍ API ရှာမတွေ့ပါက
+        # VideosSearch ကို အသုံးပြု၍ သီချင်းရှာဖွေခြင်း (ShrutiAPI တွင် search endpoint မပါရှိသောကြောင့် pytube/py-yt ကိုသုံးသည်)
         try:
             search = VideosSearch(self.query, limit=5)
             results = await search.next()
@@ -388,12 +353,11 @@ class YouTubeData(MusicService):
         if not track:
             return types.Error(code=400, message="Invalid track information provided")
 
-        # OneGrab API ဖြင့် ဒေါင်းလုပ်ဆွဲရန် ကြိုးပမ်းခြင်း
-        if config.API_URL:
-            if api_result := await YouTubeUtils.download_with_onegrab_api(track.tc, video):
-                return api_result
+        # 1. ShrutiAPI ကို ဦးစားပေး၍ ဒေါင်းလုပ်ဆွဲခြင်း
+        if api_result := await YouTubeUtils.download_with_shrutibots_api(track.tc, video):
+            return api_result
 
-        # yt-dlp ဖြင့် ဒေါင်းရန် fallback သုံးခြင်း
+        # 2. ShrutiAPI မအောင်မြင်မှသာ yt-dlp သို့ fallback သွားခြင်း
         dl_path = await YouTubeUtils.download_with_yt_dlp(track.tc, video)
         if not dl_path:
             return types.Error(code=500, message="Failed to download track from YouTube")
@@ -414,27 +378,6 @@ class YouTubeData(MusicService):
         if not normalized_url:
             return None
 
-        # OneGrab API သုံး၍ track details ယူရန် (/api/track)
-        try:
-            headers = {}
-            if config.API_KEY:
-                headers["X-API-Key"] = config.API_KEY
-
-            api_base = config.API_URL.rstrip("/") if config.API_URL else "https://api.onegrab.fun"
-            track_url = f"{api_base}/api/track?url={normalized_url}"
-            
-            httpx = HttpxClient()
-            response = await httpx.make_request(track_url, headers=headers)
-            if response:
-                if isinstance(response, dict):
-                    track_dict = response.get("data") or response.get("result") or response
-                    if isinstance(track_dict, dict) and ("id" in track_dict or "title" in track_dict or "name" in track_dict):
-                        formatted = YouTubeUtils.format_track(track_dict)
-                        return {"results": [formatted]}
-        except Exception:
-            pass
-
-        # Fallback to search
         try:
             search = VideosSearch(normalized_url, limit=1)
             results = await search.next()
