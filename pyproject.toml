@@ -33,6 +33,7 @@ classifiers = [
 dependencies = [
     "aiofiles~=24.1.0",
     "cachetools~=6.1.0",
+    "httpx>=0.27.0",       # <--- ဒီလိုင်း အသစ်ထည့်ပါ
     "kurigram~=2.2.7",
     "meval~=2.5",
     "ntgcalls>=2.0.0",
@@ -46,11 +47,12 @@ dependencies = [
     "pytgcrypto~=1.2.11",
     "pytdbot~=0.9.6.dev1",
     "pytz~=2025.2",
-    "python-dotenv>=1.0.0",    # 
+    "python-dotenv>=1.0.0",
     "tdjson~=1.8.51",
     "ujson~=5.10.0",
     "yt-dlp~=2025.7.21",
 ]
+
 
 
 [project.license]
