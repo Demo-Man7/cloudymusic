@@ -174,7 +174,7 @@ class YouTubeUtils:
         if response_data:
             dl_url = None
             
-            # Response ၏ ပုံစံအမျိုးမျိုးကို စစ်ဆေးခြင်း (dict, list, nested data)
+            # Response ပုံစံအမျိုးမျိုးကို စစ်ဆေးခြင်း (dict, list, nested data)
             if isinstance(response_data, dict):
                 dl_url = (
                     response_data.get("cdnurl") 
@@ -189,7 +189,6 @@ class YouTubeUtils:
             if isinstance(dl_url, list):
                 dl_url = dl_url[0] if dl_url else None
 
-            # အကယ်၍ API ကနေ cdnurl တိုက်ရိုက်မပေးဘဲ dict တစ်ခုလုံး သို့မဟုတ် string ပုံစံပြန်လာပါက
             if not dl_url and isinstance(response_data, str):
                 dl_url = response_data
 
@@ -197,7 +196,6 @@ class YouTubeUtils:
                 LOGGER.warning("OneGrab API did not return a valid download link, falling back to yt-dlp.")
                 return None
 
-            # Telegram file link ဖြစ်ပါက download ဆွဲပုံစံဖြင့် ယူခြင်း
             if not re.fullmatch(r"https:\/\/t\.me\/([a-zA-Z0-9_]{5,})\/(\d+)", dl_url):
                 dl = await httpx.download_file(dl_url)
                 return dl.file_path if dl.success else None
@@ -390,7 +388,7 @@ class YouTubeData(MusicService):
         if not track:
             return types.Error(code=400, message="Invalid track information provided")
 
-        # OneGrab API ဖြင့် ဒေါင်းလုပ်ဆွဲရန် ကြိုးပမ်းခြင်း (API မအောင်မြင်ပါက yt-dlp သို့ အလိုအလျောက် fallback သွားပါမည်)
+        # OneGrab API ဖြင့် ဒေါင်းလုပ်ဆွဲရန် ကြိုးပမ်းခြင်း
         if config.API_URL:
             if api_result := await YouTubeUtils.download_with_onegrab_api(track.tc, video):
                 return api_result
