@@ -1,6 +1,6 @@
-#  Copyright (c) 2025 strad-dev131
-#  Licensed under the GNU AGPL v3.0: https://www.gnu.org/licenses/agpl-3.0.html
-#  Part of the cloudymusic project. All rights reserved where applicable.
+# Copyright (c) 2025 strad-dev131
+# Licensed under the GNU AGPL v3.0: https://www.gnu.org/licenses/agpl-3.0.html
+# Part of the cloudymusic project. All rights reserved where applicable.
 
 from pytdbot import Client, types
 
@@ -21,14 +21,28 @@ startText = """
 ꜱᴜᴘᴘᴏʀᴛᴇᴅ ᴘʟᴀᴛꜰᴏʀᴍꜱ: ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ, ᴊɪᴏꜱᴀᴀᴠɴ, ᴀᴘᴘʟᴇ ᴍᴜꜱɪᴄ ᴀɴᴅ ꜱᴏᴜɴᴅᴄʟᴏᴜᴅ.
 
 ---
-◎ ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ ᴀʙᴏᴜᴛ ᴍʏ ᴍᴏᴅᴜʟᴇꜱ ᴀɴᴅ ᴄᴏᴍᴍᴀɴᴅꜱ.
+◎ ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʜᴇʟᴘ ʙᴜᴛᴛ𝐨𝐧 ᴛᴏ ɢᴇᴛ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ 𝐀𝐛𝐨𝐮𝐭 ᴍʏ ᴍᴏᴅᴜʟᴇꜱ 𝐀ɴᴅ ᴄᴏᴍᴍᴀɴᴅꜱ.
 """
 
 @Client.on_message(filters=Filter.command(["start", "help"]))
 async def start_cmd(c: Client, message: types.Message):
     chat_id = message.chat_id
     bot_name = c.me.first_name
-    mention = await message.mention()
+    
+    # Safe user name & mention handling
+    user = await c.getUser(message.sender_user_id)
+    user_name = user.first_name if user else "User"
+    mention = f"<a href='tg://user?id={message.sender_user_id}'>{user_name}</a>"
+
+    # Safe username extraction for pytdbot
+    bot_username = None
+    try:
+        if hasattr(c.me, "usernames") and c.me.usernames:
+            bot_username = c.me.usernames.editable_username
+        elif hasattr(c.me, "username"):
+            bot_username = c.me.username
+    except Exception:
+        bot_username = None
 
     if chat_id < 0:  # Group
         welcome_text = (
@@ -47,10 +61,9 @@ async def start_cmd(c: Client, message: types.Message):
         )
 
     else:  # Private chat
-        bot_username = c.me.usernames.editable_username
         reply = await message.reply_photo(
             photo=config.START_IMG,
-            caption=startText.format(mention, bot_name),
+            caption=startText.format(user_name, bot_name),
             reply_markup=add_me_markup(bot_username),
         )
 
@@ -62,11 +75,22 @@ async def start_cmd(c: Client, message: types.Message):
 async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) -> None:
     data = message.payload.data.decode()
 
+    # Safe username extraction for callbacks
+    bot_username = None
+    try:
+        if hasattr(c.me, "usernames") and c.me.usernames:
+            bot_username = c.me.usernames.editable_username
+        elif hasattr(c.me, "username"):
+            bot_username = c.me.username
+    except Exception:
+        bot_username = None
+
     if data == "help_all":
         user = await c.getUser(message.sender_user_id)
+        user_name = user.first_name if user else "User"
         await message.answer("📚 Opening Help Menu...")
         welcome_text = (
-            f"👋 <b>Hello {user.first_name}!</b>\n\n"
+            f"👋 <b>Hello {user_name}!</b>\n\n"
             f"Welcome to <b>{c.me.first_name}</b> — your ultimate music bot.\n"
             f"<code>Version: v{__version__}</code>\n\n"
             "💡 <b>What makes me special?</b>\n"
@@ -83,9 +107,10 @@ async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) 
     if data == "help_back":
         await message.answer("HOME ..")
         user = await c.getUser(message.sender_user_id)
+        user_name = user.first_name if user else "User"
         await message.edit_message_caption(
-            caption=startText.format(user.first_name, c.me.first_name),
-            reply_markup=add_me_markup(c.me.usernames.editable_username),
+            caption=startText.format(user_name, c.me.first_name),
+            reply_markup=add_me_markup(bot_username),
         )
         return
 
