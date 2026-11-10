@@ -5,11 +5,11 @@
 import asyncio
 import os
 import re
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Union
 from pathlib import Path
 
 import aiohttp
-from py_yt import Playlist, VideosSearch
+from py_yt import VideosSearch
 from pytdbot import types
 
 from cloudymusic.logger import LOGGER
@@ -87,29 +87,6 @@ class YouTubeAPI:
     async def download_video(self, link: str) -> Optional[str]:
         return await self._download_media(link, "video", 600)
 
-    async def get_autoplay(self, video_id: str) -> list:
-        video_id = video_id.split("v=")[-1].split("&")[0] if "v=" in video_id else video_id
-        if not video_id or len(video_id) < 3:
-            return []
-
-        api_url, api_key = self._get_api_config()
-        if not api_key:
-            return []
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{api_url}/autoplay",
-                    params={"video_id": video_id, "api_key": api_key},
-                    timeout=aiohttp.ClientTimeout(total=20),
-                ) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        return data.get("tracks", [])
-        except Exception:
-            pass
-        return []
-
     async def details(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
             link = self.base + link
@@ -143,9 +120,29 @@ class YouTubeData(MusicService):
             return False
         return bool(re.search(self.yt.regex, self.query))
 
+    async def get_info(self) -> Union[PlatformTracks, types.Error]:
+        """Required abstract method implementation for MusicService."""
+        if not self.query or not self.is_valid():
+            return types.Error(code=400, message="Invalid YouTube URL provided")
+
+        title, duration_min, duration_sec, thumbnail, vidid = await self.yt.details(self.query)
+        track = MusicTrack(
+            id=vidid,
+            name=title,
+            duration=duration_sec,
+            cover=thumbnail,
+            year=0,
+            url=f"https://www.youtube.com/watch?v={vidid}",
+            platform="youtube"
+        )
+        return PlatformTracks(tracks=[track])
+
     async def search(self) -> Union[PlatformTracks, types.Error]:
         if not self.query:
             return types.Error(code=400, message="No search query provided")
+
+        if self.is_valid():
+            return await self.get_info()
 
         try:
             search = VideosSearch(self.query, limit=5)
